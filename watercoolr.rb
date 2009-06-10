@@ -1,9 +1,25 @@
 require 'rubygems'
 require 'sinatra'
 require 'sequel'
-require 'httpclient'
 require 'zlib'
 require 'json'
+
+begin
+  require 'httpclient'
+  MyClient = HTTPClient
+rescue
+  require 'rest_client'
+  MyClient = RestClient
+end    
+
+
+begin
+  require 'system_timer'
+  MyTimer = SystemTimer
+rescue
+  require 'timeout'
+  MyTimer = Timeout
+end
 
 configure do
   DB = Sequel.connect(ENV['DATABASE_URL'] || 'sqlite://watercoolr.db')
@@ -63,7 +79,7 @@ post '/subscribers' do
 end
 
 post '/messages' do
-  res = false
+  ok = not_ok = slow = 0
   data = JSON.parse(params[:data])
   channel_name = data['channel'] || 'boo'
   message = data['message'] || nil
@@ -73,17 +89,18 @@ post '/messages' do
       if subs
         subs.each do |sub|
           begin
-            HTTPClient.post(sub[:url], :data => message)
+            MyTimer.timeout(5) do
+              MyClient.post(sub[:url], :data => message)
+              ok += 1
+            end  
+          rescue Timeout::Error
+            slow += 1
           rescue
+            not_ok += 1
           end
-          res = true
         end
       end
     end
   end
-  if res
-    { :status => 'OK' }.to_json
-  else
-    { :status => 'FAIL' }.to_json
-  end
+  { :ok => ok, :fail => not_ok, :timeout => slow }.to_json
 end
