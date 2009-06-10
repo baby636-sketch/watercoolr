@@ -18,22 +18,22 @@
 <h4>Example:</h4>
 <strong>Create a channel:</strong>
 <pre>
-&rarr; POST /channels
+&rarr; POST /channels data={'type':'par'}
 &larr; { 'id':'2d0128d' }
 </pre>
 <br/>
 <strong>Add subscribers:</strong>
 <pre>
-&rarr; POST /subscribers data={ 'channel':'2d0128d', 'url':'http://api.otherservice.com/your-message-handler' }
+&rarr; POST /subscribers data={ 'channel':'2d0128d', 'url':'http://api.other.com/msg-handler', 'type':'messagepub' }
 &larr; { 'status': 'OK' }
 </pre>
 <br/>
 <strong>Post messages:</strong>
 <pre>
 you &rarr; POST /messages data={ 'channel':'2d0128d', 'message':'hey guys!' }
-   us &rarr; POST http://api.otherservice.com/your-message-handler data='hey guys!'
+   us &rarr; POST http://api.other.com/msg-handler data='hey guys!'
    ...for every subscriber...
-&larr; { 'status': 'OK' }
+&larr; {"status":{"timeout":0,"fail":0,"ok":0}}
 </pre>
 <br/>
 <h4>Run it <a href="http://www.github.com/jcapote/watercoolr">locally</a> on your own server, or using http://watercoolr.nuklei.com</h4>

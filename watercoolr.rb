@@ -27,7 +27,11 @@ configure do
     DB.create_table :channels do
       primary_key :id
       varchar :name, :size => 32
+      # TODO: channel types: 'seq' - sequential, 'par' - parallel
+      # defining how the messages will be send to the subscribers
+      varchar :type, :size => 32, :default => 'seq'
     end
+    DB.add_index :channels, [:name], :unique => true
   end
 
   unless DB.table_exists? "subscribers"
@@ -35,7 +39,11 @@ configure do
       primary_key :id
       foreign_key :channel_id
       varchar :url, :size => 128
+      # TODO: sybs types - 'github', 'messagepub' etc.
+      # defining how the messages will be formatted
+      varchar :type, :size => 32, :default => 'github'
     end
+    DB.add_index :subscribers, [:channel_id, :url], :unique => true
   end
 end
 
@@ -55,34 +63,47 @@ end
 
 post '/channels' do
   id = gen_id
-  DB[:channels] << { :name => id }
+  # second chance
+  id = gen_id if DB[:channels].filter(:name => id).first
+  begin
+    data = JSON.parse(params[:data])
+    type = data['type'] || 'seq'
+  rescue
+    type = 'seq'
+  end  
+  DB[:channels] << { :name => id, :type => type }
   { :id => id.to_s }.to_json
 end
 
 post '/subscribers' do
   res = false
-  data = JSON.parse(params[:data])
-  channel_name = data['channel'] || 'boo'
-  url = data['url'] || nil
+  begin
+    data = JSON.parse(params[:data])
+    channel_name = data['channel'] || 'boo'
+    url = data['url'] || nil
+    type = data['type'] || 'github'
+  rescue
+    return { :status => 'FAIL' }.to_json
+  end  
   if rec = DB[:channels].filter(:name => channel_name).first
     if url and rec[:id]
       unless DB[:subscribers].filter(:channel_id => rec[:id], :url => url).first
-        res = DB[:subscribers] << { :channel_id => rec[:id], :url => url }
+        res = DB[:subscribers] << { :channel_id => rec[:id], :url => url, :type => type }
       end
     end
   end
-  if res
-    { :status => 'OK' }.to_json
-  else
-    { :status => 'FAIL' }.to_json
-  end
+  { :status => res ? 'OK' : 'FAIL'}.to_json
 end
 
 post '/messages' do
   ok = not_ok = slow = 0
-  data = JSON.parse(params[:data])
-  channel_name = data['channel'] || 'boo'
-  message = data['message'] || nil
+  begin
+    data = JSON.parse(params[:data])
+    channel_name = data['channel'] || 'boo'
+    message = data['message'] || nil
+  rescue
+    return { :status => 'FAIL' }.to_json
+  end  
   if rec = DB[:channels].filter(:name => channel_name).first
     if message and rec[:id]
       subs = DB[:subscribers].filter(:channel_id => rec[:id]).to_a
@@ -102,5 +123,6 @@ post '/messages' do
       end
     end
   end
-  { :ok => ok, :fail => not_ok, :timeout => slow }.to_json
+  # after JSON.parse, get with hash[:status][:ok] etc.
+  {:status => {:ok => ok, :fail => not_ok, :timeout => slow}}.to_json
 end
