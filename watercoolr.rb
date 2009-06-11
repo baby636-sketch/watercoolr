@@ -30,8 +30,10 @@ configure do
       # TODO: channel types: 'seq' - sequential, 'par' - parallel
       # defining how the messages will be send to the subscribers
       varchar :type, :size => 32, :default => 'seq'
+      time    :created
+      index   [:created]
+      index   [:name], :unique => true
     end
-    DB.add_index :channels, [:name], :unique => true
   end
 
   unless DB.table_exists? "subscribers"
@@ -42,8 +44,8 @@ configure do
       # TODO: sybs types - 'github', 'messagepub' etc.
       # defining how the messages will be formatted
       varchar :type, :size => 32, :default => 'github'
+      index   [:channel_id, :url], :unique => true
     end
-    DB.add_index :subscribers, [:channel_id, :url], :unique => true
   end
 end
 
@@ -92,7 +94,7 @@ post '/channels' do
   rescue
     type = 'seq'
   end  
-  DB[:channels] << { :name => id, :type => type }
+  DB[:channels] << { :name => id, :created => Time.now, :type => type }
   { :id => id.to_s }.to_json
 end
 
@@ -118,7 +120,7 @@ end
 # need a channel, type 'pingfm' 
 post '/pub/pingfm' do
   begin
-    rec = DB[:channels].filter(:type => 'pingfm').first
+    rec = DB[:channels].filter(:type => 'pingfm').order(:created).last
     raise unless rec[:id]
     msg = {}
     msg[:method] = params[:method]
@@ -130,7 +132,6 @@ post '/pub/pingfm' do
     end  
     msg[:title] = (params[:method] == 'blog') ? params[:title] : msg[:text]
     msg[:location] = params[:location] if params[:location]
-    return msg.inspect
     postman(rec[:id], msg.to_json).to_json
   rescue Exception => e
     {:status => e.to_s}.to_json
