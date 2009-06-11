@@ -1,0 +1,33 @@
+Watercoolr
+===========
+
+   pubsub via webhooks, or "twitter" for your applications
+
+
+Example:
+-----------
+
+ * Create a channel:
+
+-> POST /channels data={'type':'par'}   (:type is optional)
+<- { 'id':'2d0128d' }
+
+
+ * Add subscribers:
+
+-> POST /sub data={ 'channel':'2d0128d', 
+                    'url':'http://api.other.com/msg-handler', 
+                    'type':'messagepub' } (:type is optional)
+<- { 'status': 'OK' }
+
+
+ * Post messages:
+
+you -> POST /pub data={ 'channel':'2d0128d', 'message':'hey guys!' }
+   us -> POST http://api.other.com/msg-handler payload='hey guys!'
+   ...for every subscriber...
+<- {"status":{"timeout":0,"fail":0,"ok":0}}
+
+
+Run it locally on your own server ( http://www.github.com/zh/watercoolr ), 
+or using http://watercoolr.nuklei.com

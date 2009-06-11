@@ -31,23 +31,14 @@
 <strong>Post messages:</strong>
 <pre>
 you &rarr; POST /pub data={ 'channel':'2d0128d', 'message':'hey guys!' }
-   us &rarr; POST http://api.other.com/msg-handler data='hey guys!'
+   us &rarr; POST http://api.other.com/msg-handler payload='hey guys!'
    ...for every subscriber...
 &larr; {"status":{"timeout":0,"fail":0,"ok":0}}
 </pre>
 <br/>
-<h4>Run it <a href="http://www.github.com/jcapote/watercoolr">locally</a> on your own server, or using http://watercoolr.nuklei.com</h4>
+<h4>Sources: <a href="http://www.github.com/zh/watercoolr">GitHub repository</a></h4>
 </div>
 </div>
 </div>
-<script type="text/javascript">
-var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
-document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
-</script>
-<script type="text/javascript">
-try {
-var pageTracker = _gat._getTracker("UA-297284-19");
-pageTracker._trackPageview();
-} catch(err) {}</script>
 </body>
 </html>

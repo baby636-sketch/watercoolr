@@ -34,6 +34,9 @@ configure do
       index   [:created]
       index   [:name], :unique => true
     end
+    # system channels
+    DB[:channels] << { :name => '__pingfm__', :created => Time.now, :type => 'pingfm' }
+    DB[:channels] << { :name => '__github__', :created => Time.now, :type => 'github' }
   end
 
   unless DB.table_exists? "subscribers"
@@ -64,7 +67,7 @@ helpers do
     subs.each do |sub|
       begin
         MyTimer.timeout(5) do
-          MyClient.post(sub[:url], :data => msg)
+          MyClient.post(sub[:url], :payload => msg)
           ok += 1
         end  
       rescue Timeout::Error
@@ -110,33 +113,12 @@ post '/sub' do
       raise unless DB[:subscribers] << { :channel_id => rec[:id], :url => url, :type => type }
     end
     {:status => 'OK'}.to_json
-  rescue
-    {:status => 'FAIL'}.to_json
-  end  
-end
-
-# ping.fm publisher 
-# see: http://groups.google.com/group/pingfm-developers/web/working-with-a-custom-url
-# need a channel, type 'pingfm' 
-post '/pub/pingfm' do
-  begin
-    rec = DB[:channels].filter(:type => 'pingfm').order(:created).last
-    raise unless rec[:id]
-    msg = {}
-    msg[:method] = params[:method]
-    if params[:media]
-      msg[:media] = params[:media]
-      msg[:text] = params[:raw_message]
-    else
-      msg[:text] = params[:message]  
-    end  
-    msg[:title] = (params[:method] == 'blog') ? params[:title] : msg[:text]
-    msg[:location] = params[:location] if params[:location]
-    postman(rec[:id], msg.to_json).to_json
   rescue Exception => e
     {:status => e.to_s}.to_json
   end  
-end  
+end
+
+load 'pubs.rb'
 
 # general publisher - data contain both channel name and message
 post '/pub' do
