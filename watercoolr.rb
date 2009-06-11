@@ -53,6 +53,26 @@ helpers do
     salt = Time.now.to_s
     Zlib.crc32(base + salt).to_s(36)
   end
+
+  # post a message to a list of subscribers (urls)
+  def postman(subs, msg)
+    return { :status => 'FAIL' } unless (subs and msg)
+    ok = not_ok = slow = 0
+    subs.each do |sub|
+      begin
+        MyTimer.timeout(5) do
+          MyClient.post(sub, :data => msg)
+          ok += 1
+        end  
+      rescue Timeout::Error
+        slow += 1
+      rescue
+        not_ok += 1
+      end
+    end
+    # get with hash[:status][:ok] etc.
+    return {:status => {:ok => ok, :fail => not_ok, :timeout => slow}}
+  end  
 end
 
 
@@ -75,54 +95,34 @@ post '/channels' do
   { :id => id.to_s }.to_json
 end
 
-post '/subscribers' do
-  res = false
+post '/sub' do
   begin
     data = JSON.parse(params[:data])
+    raise unless url = data['url']
     channel_name = data['channel'] || 'boo'
-    url = data['url'] || nil
     type = data['type'] || 'github'
-  rescue
-    return { :status => 'FAIL' }.to_json
-  end  
-  if rec = DB[:channels].filter(:name => channel_name).first
-    if url and rec[:id]
-      unless DB[:subscribers].filter(:channel_id => rec[:id], :url => url).first
-        res = DB[:subscribers] << { :channel_id => rec[:id], :url => url, :type => type }
-      end
+    rec = DB[:channels].filter(:name => channel_name).first
+    raise unless rec[:id]  
+    unless DB[:subscribers].filter(:channel_id => rec[:id], :url => url).first
+      raise unless DB[:subscribers] << { :channel_id => rec[:id], :url => url, :type => type }
     end
-  end
-  { :status => res ? 'OK' : 'FAIL'}.to_json
+    {:status => 'OK'}.to_json
+  rescue
+    {:status => 'FAIL'}.to_json
+  end  
 end
 
-post '/messages' do
-  ok = not_ok = slow = 0
+post '/pub' do
   begin
     data = JSON.parse(params[:data])
     channel_name = data['channel'] || 'boo'
-    message = data['message'] || nil
+    message = data['message']
+    rec = DB[:channels].filter(:name => channel_name).first
+    raise unless rec[:id]  
+    subs = DB[:subscribers].filter(:channel_id => rec[:id]).to_a.collect { |s| s[:url] }
+    raise unless subs
+    postman(subs, message).to_json
   rescue
-    return { :status => 'FAIL' }.to_json
+    {:status => 'FAIL'}.to_json
   end  
-  if rec = DB[:channels].filter(:name => channel_name).first
-    if message and rec[:id]
-      subs = DB[:subscribers].filter(:channel_id => rec[:id]).to_a
-      if subs
-        subs.each do |sub|
-          begin
-            MyTimer.timeout(5) do
-              MyClient.post(sub[:url], :data => message)
-              ok += 1
-            end  
-          rescue Timeout::Error
-            slow += 1
-          rescue
-            not_ok += 1
-          end
-        end
-      end
-    end
-  end
-  # after JSON.parse, get with hash[:status][:ok] etc.
-  {:status => {:ok => ok, :fail => not_ok, :timeout => slow}}.to_json
 end

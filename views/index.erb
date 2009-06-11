@@ -24,13 +24,13 @@
 <br/>
 <strong>Add subscribers:</strong>
 <pre>
-&rarr; POST /subscribers data={ 'channel':'2d0128d', 'url':'http://api.other.com/msg-handler', 'type':'messagepub' }
+&rarr; POST /sub data={ 'channel':'2d0128d', 'url':'http://api.other.com/msg-handler', 'type':'messagepub' }
 &larr; { 'status': 'OK' }
 </pre>
 <br/>
 <strong>Post messages:</strong>
 <pre>
-you &rarr; POST /messages data={ 'channel':'2d0128d', 'message':'hey guys!' }
+you &rarr; POST /pub data={ 'channel':'2d0128d', 'message':'hey guys!' }
    us &rarr; POST http://api.other.com/msg-handler data='hey guys!'
    ...for every subscriber...
 &larr; {"status":{"timeout":0,"fail":0,"ok":0}}
