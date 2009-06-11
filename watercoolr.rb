@@ -55,13 +55,14 @@ helpers do
   end
 
   # post a message to a list of subscribers (urls)
-  def postman(subs, msg)
+  def postman(chan_id, msg)
+    subs = DB[:subscribers].filter(:channel_id => chan_id).to_a
     return { :status => 'FAIL' } unless (subs and msg)
     ok = not_ok = slow = 0
     subs.each do |sub|
       begin
         MyTimer.timeout(5) do
-          MyClient.post(sub, :data => msg)
+          MyClient.post(sub[:url], :data => msg)
           ok += 1
         end  
       rescue Timeout::Error
@@ -112,6 +113,31 @@ post '/sub' do
   end  
 end
 
+# ping.fm publisher 
+# see: http://groups.google.com/group/pingfm-developers/web/working-with-a-custom-url
+# need a channel, type 'pingfm' 
+post '/pub/pingfm' do
+  begin
+    rec = DB[:channels].filter(:type => 'pingfm').first
+    raise unless rec[:id]
+    msg = {}
+    msg[:method] = params[:method]
+    if params[:media]
+      msg[:media] = params[:media]
+      msg[:text] = params[:raw_message]
+    else
+      msg[:text] = params[:message]  
+    end  
+    msg[:title] = (params[:method] == 'blog') ? params[:title] : msg[:text]
+    msg[:location] = params[:location] if params[:location]
+    return msg.inspect
+    postman(rec[:id], msg.to_json).to_json
+  rescue Exception => e
+    {:status => e.to_s}.to_json
+  end  
+end  
+
+# general publisher - data contain both channel name and message
 post '/pub' do
   begin
     data = JSON.parse(params[:data])
@@ -119,10 +145,8 @@ post '/pub' do
     message = data['message']
     rec = DB[:channels].filter(:name => channel_name).first
     raise unless rec[:id]  
-    subs = DB[:subscribers].filter(:channel_id => rec[:id]).to_a.collect { |s| s[:url] }
-    raise unless subs
-    postman(subs, message).to_json
-  rescue
-    {:status => 'FAIL'}.to_json
+    postman(rec[:id], message).to_json
+  rescue Exception => e
+    {:status => e.to_s}.to_json
   end  
 end
