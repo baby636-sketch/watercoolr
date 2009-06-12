@@ -3,6 +3,7 @@ require 'sinatra'
 require 'sequel'
 require 'zlib'
 require 'json'
+require 'activesupport'
 
 begin
   require 'httpclient'
@@ -43,11 +44,12 @@ configure do
     DB.create_table :subscribers do
       primary_key :id
       foreign_key :channel_id
-      varchar :url, :size => 128
+      varchar     :url, :size => 128
       # TODO: subs types - 'github', 'messagepub' etc.
       # defining how the messages will be formatted
-      varchar :type, :size => 32, :default => 'github'
-      index   [:channel_id, :url], :unique => true
+      varchar     :type, :size => 32, :default => 'github'
+      blob        :data 
+      index       [:channel_id, :url], :unique => true
     end
   end
 end
@@ -59,6 +61,14 @@ helpers do
     Zlib.crc32(base + salt).to_s(36)
   end
 
+  def marshal(string)
+    [Marshal.dump(string)].pack('m*').strip!
+  end
+
+  def unmarshal(str)
+    Marshal.load(str.unpack("m")[0])
+  end
+
   # post a message to a list of subscribers (urls)
   def postman(chan_id, msg)
     subs = DB[:subscribers].filter(:channel_id => chan_id).to_a
@@ -67,12 +77,23 @@ helpers do
     subs.each do |sub|
       begin
         MyTimer.timeout(5) do
-          MyClient.post(sub[:url], :payload => msg)
+          # see: http://messagepub.com/documentation/api
+          if sub[:type] == 'messagepub'
+            data = unmarshal(sub[:data])
+            hsh = { :body => msg, 
+                    :escalation => data["escalation"], 
+                    :recipients => data["recipients"] }
+            MyClient.post(sub[:url], 
+              hsh.to_xml(:root => "notification", :skip_types => true, :skip_instruct => true))
+          else
+            MyClient.post(sub[:url], :payload => msg)
+          end  
           ok += 1
         end  
       rescue Timeout::Error
         slow += 1
-      rescue
+      rescue Exception => e
+        puts e.to_s
         not_ok += 1
       end
     end
@@ -104,16 +125,18 @@ end
 post '/sub' do
   begin
     data = JSON.parse(params[:data])
-    raise "missing 'data' parameter" unless url = data['url']
+    raise "missing URL in the 'data' parameter" unless url = data['url']
     channel_name = data['channel'] || 'boo'
     type = data['type'] || 'github'
+    ['url', 'channel', 'type'].each { |d| data.delete(d) }
     rec = DB[:channels].filter(:name => channel_name).first
     raise "channel #{channel_name} does not exists" unless rec[:id]  
     unless DB[:subscribers].filter(:channel_id => rec[:id], :url => url).first
       raise "DB insert failed" unless DB[:subscribers] << { 
                                             :channel_id => rec[:id], 
                                             :url => url, 
-                                            :type => type }
+                                            :type => type,
+                                            :data => marshal(data) }
     end
     {:status => 'OK'}.to_json
   rescue Exception => e
