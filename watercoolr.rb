@@ -44,7 +44,7 @@ configure do
       primary_key :id
       foreign_key :channel_id
       varchar :url, :size => 128
-      # TODO: sybs types - 'github', 'messagepub' etc.
+      # TODO: subs types - 'github', 'messagepub' etc.
       # defining how the messages will be formatted
       varchar :type, :size => 32, :default => 'github'
       index   [:channel_id, :url], :unique => true
@@ -104,13 +104,16 @@ end
 post '/sub' do
   begin
     data = JSON.parse(params[:data])
-    raise unless url = data['url']
+    raise "missing 'data' parameter" unless url = data['url']
     channel_name = data['channel'] || 'boo'
     type = data['type'] || 'github'
     rec = DB[:channels].filter(:name => channel_name).first
-    raise unless rec[:id]  
+    raise "channel #{channel_name} does not exists" unless rec[:id]  
     unless DB[:subscribers].filter(:channel_id => rec[:id], :url => url).first
-      raise unless DB[:subscribers] << { :channel_id => rec[:id], :url => url, :type => type }
+      raise "DB insert failed" unless DB[:subscribers] << { 
+                                            :channel_id => rec[:id], 
+                                            :url => url, 
+                                            :type => type }
     end
     {:status => 'OK'}.to_json
   rescue Exception => e
@@ -127,7 +130,7 @@ post '/pub' do
     channel_name = data['channel'] || 'boo'
     message = data['message']
     rec = DB[:channels].filter(:name => channel_name).first
-    raise unless rec[:id]  
+    raise "channel #{channel_name} does not exists" unless rec[:id]  
     postman(rec[:id], message).to_json
   rescue Exception => e
     {:status => e.to_s}.to_json

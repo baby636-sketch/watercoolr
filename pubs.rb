@@ -4,7 +4,7 @@
 post '/pub/pingfm' do
   begin
     rec = DB[:channels].filter(:type => 'pingfm').order(:created).last
-    raise unless rec[:id]
+    raise "'pingfm' type channel does not exists" unless rec[:id]
     msg = {}
     msg[:method] = params[:method]
     if params[:media]
@@ -23,8 +23,8 @@ end
 
 post '/pub/github' do
   begin
-    rec = DB[:channels].filter(:type => 'pingfm').order(:created).last
-    raise unless rec[:id]
+    rec = DB[:channels].filter(:type => 'github').order(:created).last
+    raise "'github' type channel does not exists" unless rec[:id]
     postman(rec[:id], params[:payload]).to_json
   rescue Exception => e
     {:status => e.to_s}.to_json
