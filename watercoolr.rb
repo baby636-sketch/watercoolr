@@ -3,15 +3,7 @@ require 'sinatra'
 require 'sequel'
 require 'zlib'
 require 'json'
-
-begin
-  require 'httpclient'
-  MyClient = HTTPClient
-rescue
-  require 'rest_client'
-  MyClient = RestClient
-end    
-
+require 'httpclient'
 
 begin
   require 'system_timer'
@@ -67,7 +59,7 @@ helpers do
     subs.each do |sub|
       begin
         MyTimer.timeout(5) do
-          MyClient.post(sub[:url], :payload => msg)
+          HTTPClient.post(sub[:url], :payload => msg)
           ok += 1
         end  
       rescue Timeout::Error
