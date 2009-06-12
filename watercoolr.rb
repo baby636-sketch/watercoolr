@@ -3,16 +3,7 @@ require 'sinatra'
 require 'sequel'
 require 'zlib'
 require 'json'
-require 'activesupport'
-
-begin
-  require 'httpclient'
-  MyClient = HTTPClient
-rescue
-  require 'rest_client'
-  MyClient = RestClient
-end    
-
+require 'httpclient'
 
 begin
   require 'system_timer'
@@ -76,17 +67,13 @@ helpers do
     ok = not_ok = slow = 0
     subs.each do |sub|
       begin
+        raise "No valid URL provided" unless sub[:url]
         MyTimer.timeout(5) do
           # see: http://messagepub.com/documentation/api
           if sub[:type] == 'messagepub'
-            data = unmarshal(sub[:data])
-            hsh = { :body => msg, 
-                    :escalation => data["escalation"], 
-                    :recipients => data["recipients"] }
-            MyClient.post(sub[:url], 
-              hsh.to_xml(:root => "notification", :skip_types => true, :skip_instruct => true))
+            MPubClient.post(sub[:url], msg, unmarshal(sub[:data]))
           else
-            MyClient.post(sub[:url], :payload => msg)
+            HTTPClient.post(sub[:url], :payload => msg)
           end  
           ok += 1
         end  
@@ -102,7 +89,10 @@ helpers do
   end  
 end
 
-
+# support for specific publisher and subscribers
+# comment following 2 lines if not needed
+load 'pubs.rb'
+load 'subs.rb'
 
 get '/' do
   erb :index
@@ -143,8 +133,6 @@ post '/sub' do
     {:status => e.to_s}.to_json
   end  
 end
-
-load 'pubs.rb'
 
 # general publisher - data contain both channel name and message
 post '/pub' do
