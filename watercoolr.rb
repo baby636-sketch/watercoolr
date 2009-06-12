@@ -39,7 +39,7 @@ configure do
       # TODO: subs types - 'github', 'messagepub' etc.
       # defining how the messages will be formatted
       varchar     :type, :size => 32, :default => 'github'
-      blob        :data 
+      text        :data 
       index       [:channel_id, :url], :unique => true
     end
   end
