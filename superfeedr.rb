@@ -32,7 +32,7 @@ post '/superfeedr' do
   begin
     rec = DB[:channels].filter(:type => 'superfeedr').order(:created).last
     raise "'superfeedr' type topic does not exists" unless rec[:id]
-    postman(rec[:id], params.inspect.to_s).to_json
+    postman(rec[:id], request.body).to_json
     {:status => 'OK'}.to_json
   rescue Exception => e
     status 500
