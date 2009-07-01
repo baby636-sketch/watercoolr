@@ -37,7 +37,8 @@ post '/superfeedr' do
     res = []
     feed.entries.each { |e|
       res << { :title => e.title, :text => e.summary, :timestamp => e.published.strftime('%m/%d/%Y') }    
-    }  
+    }
+    p res.inspect
     postman(rec[:id], res).to_json
     {:status => 'OK'}.to_json
   rescue Exception => e
