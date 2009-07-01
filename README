@@ -4,30 +4,150 @@ Watercoolr
    pubsub via webhooks, or "twitter" for your applications
 
 
-Example:
+Input
+======
+
+
+Native watercoolr publishers
+-----------------------------
+
+Send POST request with JSON-encoded 'data' parameter to
+
+  http://watercoolr.example.com/publish
+
+'data' must provide at least channel name data[:channel] and a message
+data[:message]. The message will be send to all subscribers of that channel.
+
+ * Example
+
+  resp = RestClient.post 'http://localhost:4567/channels', :data => ''
+  id = JSON.parse(resp)["id"]
+  resp = RestClient.post 'http://localhost:4567/subscribe', 
+    :data => { :channel => id, 
+               :url => 'http://localhost:8080/test-handler' }.to_json
+  puts resp
+  resp = RestClient.post 'http://localhost:4567/publish', 
+    :data => { :channel => id, :message => 'HAYYYY' }.to_json
+  puts resp
+
+
+You can use watercoolr to receive input from different web services,
+supporting webhooks.
+
+
+ping.fm
+--------
+
+http://ping.fm/ can provide IM, E-mail, web etc. input for your webhooks.
+The information is coming via POST parameters - see also
+http://groups.google.com/group/pingfm-developers/web/working-with-a-custom-url
+
+Go to http://ping.fm/custom/ and in the "Custom URL:" box enter:
+
+  http://watercoolr.example.com/pingfm
+
+You need a channel with 'pingfm' type. During the system startup one such
+channel is added by default. Just find it's name or create a new one - the
+latest created will be used. You can add then subscribers to your 'pingfm' 
+channel.
+
+  * Example
+
+  # on http://ping.fm/custom/ enter http://example.com/pingfm
+  resp = RestClient.post 'http://localhost:4567/channels',
+    :data => { :type => 'pingfm' }.to_json
+  id = JSON.parse(resp)["id"]
+  # register your subscribers and send them messages from IM, e-mail etc.
+
+
+GitHub
+-------
+
+http://github.com/ can push notification for repository commits to your
+webhooks. The all information is inside JSON-encoded 'payload' parameter.
+See also: http://github.com/guides/post-receive-hooks
+
+From your project pages go to "Admin"|"Service Hooks" and in the 
+"Post-Receive URLs" box enter:
+
+   http://watercoolr.example.com/github
+
+You need a channel with 'github' type. During the system startup one such
+channel is added by default. Just find it's name or create a new one - the
+latest created will be used. You can add then subscribers to your 'github' 
+channel.
+
+  * Example
+
+  resp = RestClient.post 'http://localhost:4567/channels',
+    :data => { :type => 'github' }.to_json
+  id = JSON.parse(resp)["id"]
+
+
+superfeedr
 -----------
 
- * Create a channel:
+http://superfeedr.com/ can send to your subscribers changes in some Atom or RSS
+feeds. Their implementation of the PubSubHubbub protocol verifying ownership
+of the URL by sending GET request and expecting back a response with body,
+containing special token. To use watercoolr with superfeedr, you need to register
+a channel with ID={secret superfeedr token}:
 
--> POST /channels data={'type':'par'}   (:type is optional)
-<- { 'id':'2d0128d' }
+  TOKEN = 'YourSuperFeedrToken'.freeze
+  resp = RestClient.post 'http://localhost:4567/superfeedr/channels', 
+    :data => { :token => TOKEN }.to_json
+  id = JSON.parse(resp)["id"]
 
+Then in "Settings"|"Notifications" choose Type: "PubSubhubbub" and in the 
+"Webhook URL" box enter:
 
- * Add subscribers:
+  http://watercoolr.example.com/superfeedr
 
--> POST /sub data={ 'channel':'2d0128d', 
-                    'url':'http://api.other.com/msg-handler', 
-                    'type':'messagepub' } (:type is optional)
-<- { 'status': 'OK' }
-
-
- * Post messages:
-
-you -> POST /pub data={ 'channel':'2d0128d', 'message':'hey guys!' }
-   us -> POST http://api.other.com/msg-handler payload='hey guys!'
-   ...for every subscriber...
-<- {"status":{"timeout":0,"fail":0,"ok":0}}
+TODO: I'm still not sure for the format of the comming notifications. That's why
+      the subscribers will receive JSON-encoded inspect() of the notification.
 
 
-Run it locally on your own server ( http://www.github.com/zh/watercoolr ), 
-or using http://watercoolr.nuklei.com
+
+Output
+=======
+
+"Normal" subscribers (webhooks)
+--------------------------------
+
+watercoolr can push notifications to normal webhooks - data is inside JSON
+encoded 'payload' parameter (similar to github).
+
+  * Example
+
+  resp = RestClient.post 'http://localhost:4567/channels',
+    :data => { :type => 'pingfm' }.to_json
+  id = JSON.parse(resp)["id"]
+  resp = RestClient.post 'http://localhost:4567/publish', 
+    :data => { :channel => id, :message => 'HAYYYY' }.to_json
+  puts resp
+
+
+messagepub subscribers
+-----------------------
+
+http://messagepub.com/ can send message to twitter, XMPP (jabber), SMS etc.
+There also have a ruby wrapper around their API
+
+  gem install messagepub --no-rdoc --no-ri
+
+In order to use their services, subscribers with 'messagepub' type and additional
+data (channels, propagation etc.) need to be used. See also:
+http://messagepub.com/documentation/api .
+
+ * Example
+
+  mp = { 
+    :recipient => [
+       {:position => 1, :channel => 'email', :address => 'me@example.com'},
+       {:position => 2, :channel => 'twitter', :address => 'thetwitter'}
+  ]}
+ 
+  resp = RestClient.post('http://localhost:4567/subscribe',
+    :data => { :channel => id, :type => 'messagepub', :url => 'YOURAPIKEY',
+               :escalation => 30, :recipients => mp }.to_json)
+  puts resp
