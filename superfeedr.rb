@@ -34,11 +34,12 @@ post '/superfeedr' do
     rec = DB[:channels].filter(:type => 'superfeedr').order(:created).last
     raise "'superfeedr' type topic does not exists" unless rec[:id]
     feed = Atom::Feed.new(request.body.string)
+    p feed.inspect
     res = []
     feed.entries.each { |e|
+      p e.inspect
       res << { :title => e.title, :text => e.summary, :timestamp => e.published.strftime('%m/%d/%Y') }    
     }
-    p res.inspect
     postman(rec[:id], res).to_json
     {:status => 'OK'}.to_json
   rescue Exception => e
