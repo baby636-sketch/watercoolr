@@ -1,7 +1,7 @@
 # ping.fm publisher 
 # see: http://groups.google.com/group/pingfm-developers/web/working-with-a-custom-url
 # need a channel, type 'pingfm' 
-post '/pub/pingfm' do
+post '/pingfm' do
   begin
     rec = DB[:channels].filter(:type => 'pingfm').order(:created).last
     raise "'pingfm' type channel does not exists" unless rec[:id]
@@ -21,7 +21,7 @@ post '/pub/pingfm' do
   end  
 end
 
-post '/pub/github' do
+post '/github' do
   begin
     rec = DB[:channels].filter(:type => 'github').order(:created).last
     raise "'github' type channel does not exists" unless rec[:id]
