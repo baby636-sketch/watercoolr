@@ -19,8 +19,7 @@ configure do
     DB.create_table :channels do
       primary_key :id
       varchar :name, :size => 32
-      # TODO: channel types: 'seq' - sequential, 'par' - parallel
-      # defining how the messages will be send to the subscribers
+      # channel types: 'github', 'pingfm', 'superfeedr' etc.
       varchar :type, :size => 32, :default => 'seq'
       time    :created
       index   [:created]
@@ -61,38 +60,39 @@ helpers do
   end
 
   # post a message to a list of subscribers (urls)
-  def postman(chan_id, msg)
-    subs = DB[:subscribers].filter(:channel_id => chan_id).to_a
+  def postman(channel, msg)
+    subs = DB[:subscribers].filter(:channel_id => channel).to_a
     return { :status => 'FAIL' } unless (subs and msg)
-    ok = not_ok = slow = 0
     subs.each do |sub|
       begin
         raise "No valid URL provided" unless sub[:url]
         MyTimer.timeout(5) do
-          # see: http://messagepub.com/documentation/api
+        # see: http://messagepub.com/documentation/api
           if sub[:type] == 'messagepub'
             MPubClient.post(sub[:url], msg, unmarshal(sub[:data]))
           else
             HTTPClient.post(sub[:url], :payload => msg)
-          end  
-          ok += 1
-        end  
-      rescue Timeout::Error
-        slow += 1
+          end
+        end
       rescue Exception => e
-        puts e.to_s
-        not_ok += 1
+        case e
+          when Timeout::Error
+            puts "Timeout: #{sub[:url]}"
+          else  
+            puts e.to_s
+        end  
+        next
       end
     end
-    # get with hash[:status][:ok] etc.
-    return {:status => {:ok => ok, :fail => not_ok, :timeout => slow}}
-  end  
+    return {:status => 'OK'}
+  end
 end
 
 # support for specific publisher and subscribers
-# comment following 2 lines if not needed
+# comment following lines if not needed
 load 'pubs.rb'
 load 'subs.rb'
+load 'superfeedr.rb'
 
 get '/' do
   erb :index
@@ -112,7 +112,7 @@ post '/channels' do
   { :id => id.to_s }.to_json
 end
 
-post '/sub' do
+post '/subscribe' do
   begin
     data = JSON.parse(params[:data])
     raise "missing URL in the 'data' parameter" unless url = data['url']
@@ -135,7 +135,7 @@ post '/sub' do
 end
 
 # general publisher - data contain both channel name and message
-post '/pub' do
+post '/publish' do
   begin
     data = JSON.parse(params[:data])
     channel_name = data['channel'] || 'boo'
