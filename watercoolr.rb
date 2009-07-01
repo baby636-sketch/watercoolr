@@ -71,7 +71,7 @@ helpers do
           if sub[:type] == 'messagepub'
             MPubClient.post(sub[:url], msg, unmarshal(sub[:data]))
           else
-            HTTPClient.post(sub[:url], :payload => msg)
+            HTTPClient.post(sub[:url], :payload => {:message => msg}.to_json)
           end
         end
       rescue Exception => e
@@ -137,7 +137,7 @@ end
 # general publisher - data contain both channel name and message
 post '/publish' do
   begin
-    data = JSON.parse(params[:data])
+    data = JSON.parse(params[:payload])
     channel_name = data['channel'] || 'boo'
     message = data['message']
     rec = DB[:channels].filter(:name => channel_name).first

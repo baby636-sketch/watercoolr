@@ -13,5 +13,5 @@ resp = RestClient.post 'http://localhost:4567/subscribe', :data => { :channel =>
 puts resp
 
 puts "posting message to #{id}"
-resp = RestClient.post 'http://localhost:4567/publish', :data => { :channel => id, :message => 'HAYYYY' }.to_json
+resp = RestClient.post 'http://localhost:4567/publish', :payload => { :channel => id, :message => 'HAYYYY' }.to_json
 puts resp
