@@ -1,5 +1,6 @@
 # superfeedr hooks - needs 'authentication' before usage
 # first register topic with ID=superfeedr token
+require 'atom'
 
 post '/superfeedr/channels' do
   begin
@@ -32,7 +33,12 @@ post '/superfeedr' do
   begin
     rec = DB[:channels].filter(:type => 'superfeedr').order(:created).last
     raise "'superfeedr' type topic does not exists" unless rec[:id]
-    postman(rec[:id], request.body.string).to_json
+    feed = Atom::Feed.new(request.body.string)
+    res = []
+    feed.entries.each { |e|
+      res << { :title => e.title, :text => e.summary, :timestamp => e.published.strftime('%m/%d/%Y') }    
+    }  
+    postman(rec[:id], res).to_json
     {:status => 'OK'}.to_json
   rescue Exception => e
     status 500
