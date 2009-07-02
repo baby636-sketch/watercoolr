@@ -2,8 +2,10 @@ require 'rubygems'
 require 'rest_client'
 require 'json'
 
+# Need a test user created
+# DB[:users] << { :name => 'test', :password => 'test', :service => 'self' }
 puts "creating channel..."
-resp = RestClient.post 'http://localhost:4567/channels', :data => ''
+resp = RestClient.post 'http://test:test@localhost:4567/channels', :data => ''
 id = JSON.parse(resp)["id"]
 
 puts "adding subscribers to channel #{id}"

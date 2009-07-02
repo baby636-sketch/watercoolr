@@ -42,9 +42,36 @@ configure do
       index       [:channel_id, :url], :unique => true
     end
   end
+
+  unless DB.table_exists? "users"
+    DB.create_table :users do
+      primary_key :id
+      varchar :name, :size => 32
+      varchar :password, :size => 32
+      varchar :service, :size => 32
+      index   [:name], :unique => true
+      index   [:name, :service], :unique => true
+    end
+  end 
+  # Need to have at least admin user
+  #DB[:users] << { :name => 'admin', :password => 'change_me', :service => 'self' } 
 end
 
 helpers do
+
+  def protected!
+    response['WWW-Authenticate'] = %(Basic realm="HTTP Auth") and \
+    throw(:halt, [401, "Not authorized\n"]) and return unless authorized?
+  end
+
+  def authorized?
+    @auth ||=  Rack::Auth::Basic::Request.new(request.env)
+    return false unless @auth.provided? && @auth.basic? && @auth.credentials
+    user,pass = @auth.credentials
+    return false unless DB[:users].filter(:name => user, :service => 'self', :password => pass).first
+    true
+  end
+
   def gen_id
     base = rand(100000000).to_s
     salt = Time.now.to_s
@@ -99,16 +126,18 @@ get '/' do
 end
 
 post '/channels' do
+  protected!
   id = gen_id
-  # second chance
-  id = gen_id if DB[:channels].filter(:name => id).first
   begin
     data = JSON.parse(params[:data])
+    id = data['id'] if data['id'] && (data['type'] == 'superfeedr')
     type = data['type'] || 'seq'
   rescue
     type = 'seq'
+  end 
+  unless DB[:channels].filter(:name => id).first
+    DB[:channels] << { :name => id, :created => Time.now, :type => type }
   end  
-  DB[:channels] << { :name => id, :created => Time.now, :type => type }
   { :id => id.to_s }.to_json
 end
 

@@ -54,6 +54,8 @@ channel.
   * Example
 
   # on http://ping.fm/custom/ enter http://example.com/pingfm
+  # optional - create 'pingfm' type channel 
+  # or use the default one with id = '__pingfm__' 
   resp = RestClient.post 'http://localhost:4567/channels',
     :data => { :type => 'pingfm' }.to_json
   id = JSON.parse(resp)["id"]
@@ -79,6 +81,8 @@ channel.
 
   * Example
 
+  # optional - create 'github' type channel 
+  # or use the default one with id = '__github__' 
   resp = RestClient.post 'http://localhost:4567/channels',
     :data => { :type => 'github' }.to_json
   id = JSON.parse(resp)["id"]
@@ -94,8 +98,8 @@ containing special token. To use watercoolr with superfeedr, you need to registe
 a channel with ID={secret superfeedr token}:
 
   TOKEN = 'YourSuperFeedrToken'.freeze
-  resp = RestClient.post 'http://localhost:4567/superfeedr/channels', 
-    :data => { :token => TOKEN }.to_json
+  resp = RestClient.post 'http://localhost:4567/channels', 
+    :data => { :type => 'superfeedr', :id => TOKEN }.to_json
   id = JSON.parse(resp)["id"]
 
 Then in "Settings"|"Notifications" choose Type: "PubSubhubbub" and in the 
