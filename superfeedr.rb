@@ -33,7 +33,14 @@ post '/superfeedr' do
   begin
     rec = DB[:channels].filter(:type => 'superfeedr').order(:created).last
     raise "'superfeedr' type topic does not exists" unless rec[:id]
-    postman(rec[:id], Crack::XML.parse(request.body.string)).to_json
+    atom = Crack::XML.parse(request.body.string)
+    r = []
+    if atom["feed"]["entry"].kind_of?(Array)
+      atom["feed"]["entry"].each { |e| r << e["title"] }
+    else
+      r = atom["feed"]["entry"]["title"]
+    end
+    postman(rec[:id], r).to_json
     {:status => 'OK'}.to_json
   rescue Exception => e
     status 500
