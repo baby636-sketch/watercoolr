@@ -36,9 +36,12 @@ post '/superfeedr' do
     atom = Crack::XML.parse(request.body.string)
     r = []
     if atom["feed"]["entry"].kind_of?(Array)
-      atom["feed"]["entry"].each { |e| r << e["title"] }
+      atom["feed"]["entry"].each { |e| 
+        r << {:id => e["id"], :title => e["title"], :published => e["published"] }
+      }
     else
-      r = atom["feed"]["entry"]["title"]
+      e = atom["feed"]["entry"]
+      r = {:id => e["id"], :title => e["title"], :published => e["published"] }
     end
     postman(rec[:id], r).to_json
     {:status => 'OK'}.to_json
