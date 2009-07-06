@@ -54,7 +54,12 @@ configure do
     end
   end 
   # Need to have at least admin user
-  #DB[:users] << { :name => 'admin', :password => 'change_me', :service => 'self' } 
+  #DB[:users] << { :name => 'admin', :password => 'change_me', :service => 'self' }
+  # All hooks library URLs will be /hook/:name/:secret/
+  # default secret
+  # DB[:users] << { :name => 'all', :password => 'change_me', :service => 'hooks' }
+  # secret per hook
+  # DB[:users] << { :name => 'ff', :password => 'change_me_too', :service => 'hooks' }
 end
 
 helpers do
@@ -93,12 +98,16 @@ helpers do
     subs.each do |sub|
       begin
         raise "No valid URL provided" unless sub[:url]
+        # remove sensitive data for the 'debug' subscribers
+        data = (sub[:type] == 'debug') ? {} : unmarshal(sub[:data])
         MyTimer.timeout(5) do
         # see: http://messagepub.com/documentation/api
           if sub[:type] == 'messagepub'
-            MPubClient.post(sub[:url], msg, unmarshal(sub[:data]))
+            MPubClient.post(sub[:url], msg, data)
           else
-            HTTPClient.post(sub[:url], :payload => {:message => msg}.to_json)
+            HTTPClient.post(sub[:url], 
+                            :payload => {:message => msg}.to_json,
+                            :data => data.to_json)
           end
         end
       rescue Exception => e
@@ -120,6 +129,7 @@ end
 load 'pubs.rb'
 load 'subs.rb'
 load 'superfeedr.rb'
+load 'hooks.rb'
 
 get '/' do
   erb :index
@@ -146,7 +156,7 @@ post '/subscribe' do
     data = JSON.parse(params[:data])
     raise "missing URL in the 'data' parameter" unless url = data['url']
     channel_name = data['channel'] || 'boo'
-    type = data['type'] || 'github'
+    type = data['type'] || 'debug'
     ['url', 'channel', 'type'].each { |d| data.delete(d) }
     rec = DB[:channels].filter(:name => channel_name).first
     raise "channel #{channel_name} does not exists" unless rec[:id]  

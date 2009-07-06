@@ -2,3 +2,5 @@ httpclient
 SystemTimer
 messagepub
 crack
+xmpp4r
+xmpp4r-simple
