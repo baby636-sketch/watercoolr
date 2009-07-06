@@ -129,17 +129,57 @@ To prevent security information leaks, all subscribers are created with type='de
 by default. For such subscribers, 'data' parameter is not send during the POSTs.
 This kind of subscribers are suitable for example for debugging (PostBin etc.).
 To have the 'data' parameter send to the hook, set the subscriber type to any string,
-different from 'debug'
+different from 'debug':
 
   * Example
 
   resp = RestClient.post 'http://admin:admin@localhost:4567/channels',
     :data => { :type => 'pingfm' }.to_json
   id = JSON.parse(resp)["id"]
+
+  puts "adding subscribers to channel #{id}"
+  resp = RestClient.post 'http://localhost:4567/subscribe', 
+    :data => { :channel => id, 
+               :type => 'local', 
+               :url => 'http://localhost:4567/hook/xmpp/secret/', 
+               :username=>'me_jid@jabber.com',
+               :password=>'secret',
+               :to=>'some_jid@xmpp.org' }.to_json
+  puts resp
    
+  resp = RestClient.post 'http://localhost:4567/subscribe',
+    :data => { :channel => id, :url => 'http://postbin.org/xxxYYY' }.to_json
+  puts resp    
+
   resp = RestClient.post 'http://localhost:4567/publish', 
     :data => { :channel => id, :message => 'HAYYYY' }.to_json
   puts resp
+
+
+Small webhooks library
+-----------------------
+
+To be easier to start with watercoolr, it provides a small library of ready to use 
+webhooks, accessable on the same system, where watercoolr is deployed.
+If the site URL is http://localhost:4567/ , the URLs for webhooks will be: 
+
+  http://localhost:4567/hook/:NAME/:SECRET/
+
+where :NAME is one of ff (FriendFeed), twitter or xmpp and :SECRET is a special user,
+created during the initial deployment:
+
+  DB[:users] << { :name => 'all', :password => '...', :service => 'hooks' }
+
+You can create also secret token per webhook, with :name => 'ff', 'twitter' or 'xmpp'
+
+  DB[:users] << { :name => 'all', :password => 'secret', :service => 'hooks' }
+  DB[:users] << { :name => 'xmpp', :password => 'token', :service => 'hooks' }
+
+xmpp webhook will be on URL: http://localhost:4567/hook/xmpp/token/ and all other
+webhooks - on URL: http://localhost:4567/hook/:name/secret/
+
+Webhooks can be used like watercoolr subscribers or called directly with POST request
+and 'data' amd 'payload' parameters from other services (github etc.)
 
 
 messagepub subscribers
