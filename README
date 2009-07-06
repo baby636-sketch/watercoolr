@@ -11,23 +11,23 @@ Input
 Native watercoolr publishers
 -----------------------------
 
-Send POST request with JSON-encoded 'data' parameter to
+Send POST request with JSON-encoded 'payload' parameter to
 
   http://watercoolr.example.com/publish
 
-'data' must provide at least channel name data[:channel] and a message
-data[:message]. The message will be send to all subscribers of that channel.
+'payload' must provide at least channel name payload[:channel] and a message
+payload[:message]. The message will be send to all subscribers of that channel.
 
  * Example
 
-  resp = RestClient.post 'http://localhost:4567/channels', :data => ''
+  resp = RestClient.post 'http://admin:admin@localhost:4567/channels', :data => ''
   id = JSON.parse(resp)["id"]
   resp = RestClient.post 'http://localhost:4567/subscribe', 
     :data => { :channel => id, 
                :url => 'http://localhost:8080/test-handler' }.to_json
   puts resp
   resp = RestClient.post 'http://localhost:4567/publish', 
-    :data => { :channel => id, :message => 'HAYYYY' }.to_json
+    :payload => { :channel => id, :message => 'HAYYYY' }.to_json
   puts resp
 
 
@@ -56,7 +56,7 @@ channel.
   # on http://ping.fm/custom/ enter http://example.com/pingfm
   # optional - create 'pingfm' type channel 
   # or use the default one with id = '__pingfm__' 
-  resp = RestClient.post 'http://localhost:4567/channels',
+  resp = RestClient.post 'http://admin:admin@localhost:4567/channels',
     :data => { :type => 'pingfm' }.to_json
   id = JSON.parse(resp)["id"]
   # register your subscribers and send them messages from IM, e-mail etc.
@@ -83,7 +83,7 @@ channel.
 
   # optional - create 'github' type channel 
   # or use the default one with id = '__github__' 
-  resp = RestClient.post 'http://localhost:4567/channels',
+  resp = RestClient.post 'http://admin:admin@localhost:4567/channels',
     :data => { :type => 'github' }.to_json
   id = JSON.parse(resp)["id"]
 
@@ -98,7 +98,7 @@ containing special token. To use watercoolr with superfeedr, you need to registe
 a channel with ID={secret superfeedr token}:
 
   TOKEN = 'YourSuperFeedrToken'.freeze
-  resp = RestClient.post 'http://localhost:4567/channels', 
+  resp = RestClient.post 'http://admin:admin@localhost:4567/channels', 
     :data => { :type => 'superfeedr', :id => TOKEN }.to_json
   id = JSON.parse(resp)["id"]
 
@@ -118,14 +118,25 @@ Output
 "Normal" subscribers (webhooks)
 --------------------------------
 
-watercoolr can push notifications to normal webhooks - data is inside JSON
-encoded 'payload' parameter (similar to github).
+watercoolr can push notifications to normal webhooks. Information is divided on two
+parts (similar to github):
+
+  - meta-information (user names, passwords etc.) inside the 'data' JSON-encoded
+    parameter
+  - actual data (message) - 'payload' JSON-encoded parameter
+
+To prevent security information leaks, all subscribers are created with type='debug'
+by default. For such subscribers, 'data' parameter is not send during the POSTs.
+This kind of subscribers are suitable for example for debugging (PostBin etc.).
+To have the 'data' parameter send to the hook, set the subscriber type to any string,
+different from 'debug'
 
   * Example
 
-  resp = RestClient.post 'http://localhost:4567/channels',
+  resp = RestClient.post 'http://admin:admin@localhost:4567/channels',
     :data => { :type => 'pingfm' }.to_json
   id = JSON.parse(resp)["id"]
+   
   resp = RestClient.post 'http://localhost:4567/publish', 
     :data => { :channel => id, :message => 'HAYYYY' }.to_json
   puts resp

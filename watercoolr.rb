@@ -52,14 +52,14 @@ configure do
       index   [:name], :unique => true
       index   [:name, :service], :unique => true
     end
+    # Need to have at least admin user
+    DB[:users] << { :name => 'admin', :password => 'change_me', :service => 'self' }
+    # All hooks library URLs will be /hook/:name/:secret/
+    # default secret
+    DB[:users] << { :name => 'all', :password => 'change_me', :service => 'hooks' }
+    # secret per hook
+    # DB[:users] << { :name => 'ff', :password => 'change_me_too', :service => 'hooks' }
   end 
-  # Need to have at least admin user
-  DB[:users] << { :name => 'admin', :password => 'change_me', :service => 'self' }
-  # All hooks library URLs will be /hook/:name/:secret/
-  # default secret
-  DB[:users] << { :name => 'all', :password => 'change_me', :service => 'hooks' }
-  # secret per hook
-  # DB[:users] << { :name => 'ff', :password => 'change_me_too', :service => 'hooks' }
 end
 
 helpers do
