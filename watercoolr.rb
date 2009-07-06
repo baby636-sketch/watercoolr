@@ -54,10 +54,10 @@ configure do
     end
   end 
   # Need to have at least admin user
-  #DB[:users] << { :name => 'admin', :password => 'change_me', :service => 'self' }
+  DB[:users] << { :name => 'admin', :password => 'change_me', :service => 'self' }
   # All hooks library URLs will be /hook/:name/:secret/
   # default secret
-  # DB[:users] << { :name => 'all', :password => 'change_me', :service => 'hooks' }
+  DB[:users] << { :name => 'all', :password => 'change_me', :service => 'hooks' }
   # secret per hook
   # DB[:users] << { :name => 'ff', :password => 'change_me_too', :service => 'hooks' }
 end
