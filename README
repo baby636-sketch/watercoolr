@@ -142,9 +142,9 @@ different from 'debug':
     :data => { :channel => id, 
                :type => 'local', 
                :url => 'http://localhost:4567/hook/xmpp/secret/', 
-               :username=>'me_jid@jabber.com',
-               :password=>'secret',
-               :to=>'some_jid@xmpp.org' }.to_json
+               :username => 'me_jid@jabber.com',
+               :password => 'secret',
+               :to => 'some_jid@xmpp.org' }.to_json
   puts resp
    
   resp = RestClient.post 'http://localhost:4567/subscribe',
@@ -165,8 +165,8 @@ If the site URL is http://localhost:4567/ , the URLs for webhooks will be:
 
   http://localhost:4567/hook/:NAME/:SECRET/
 
-where :NAME is one of ff (FriendFeed), twitter or xmpp and :SECRET is a special user,
-created during the initial deployment:
+where :NAME is one of ff (FriendFeed), twitter, xmpp or prowl and :SECRET is 
+a special user, created during the initial deployment:
 
   DB[:users] << { :name => 'all', :password => '...', :service => 'hooks' }
 
@@ -180,6 +180,26 @@ webhooks - on URL: http://localhost:4567/hook/:name/secret/
 
 Webhooks can be used like watercoolr subscribers or called directly with POST request
 and 'data' amd 'payload' parameters from other services (github etc.)
+
+
+Pushing to iPhone
+------------------
+
+'prowl' webhook can be used to push notifications to iPhone.
+
+  resp = RestClient.post 'http://localhost:4567/subscribe',
+    :data => { :channel => id,
+               :type => 'local',
+               :url => 'http://localhost:4567/hook/prowl/secret/',
+               :apikey => 'PROWL_APIKEY',
+               :priority => 2}.to_json
+  puts resp    
+
+  resp = RestClient.post 'http://localhost:4567/publish', 
+    :data => { :channel => id, :title => 'Alert!' :message => 'Call me!' }.to_json
+  puts resp
+  
+For Prowl API details see: http://forums.cocoaforge.com/viewtopic.php?f=45&t=20339
 
 
 messagepub subscribers
