@@ -23,7 +23,8 @@ configure do
       # channel types: 'github', 'pingfm', 'superfeedr' etc.
       varchar :type, :size => 32, :default => 'seq'
       time    :created
-      index   [:created]
+      time    :updated
+      index   [:updated]
       index   [:name], :unique => true
     end
     # system channels
@@ -50,7 +51,6 @@ configure do
       varchar :name, :size => 32
       varchar :password, :size => 32
       varchar :service, :size => 32
-      index   [:name], :unique => true
       index   [:name, :service], :unique => true
     end
     # Need to have at least admin user
@@ -60,6 +60,8 @@ configure do
     DB[:users] << { :name => 'all', :password => 'change_me', :service => 'hooks' }
     # secret per hook
     # DB[:users] << { :name => 'ff', :password => 'change_me_too', :service => 'hooks' }
+    # channel protection - for PubSubHubbub subscribers
+    DB[:users] << { :name => 'all', :password => 'change_me', :service => 'channels' }
   end 
 end
 
@@ -108,13 +110,6 @@ helpers do
     end
     r
   end
-
-  def hash2text(payload)
-    text = ""
-    text = payload if payload.kind_of?(String)
-    payload.each { |k,v| text << "#{k} = #{v}\n" } if payload.kind_of?(Hash)
-    text  
-  end  
 
   # post a message to a list of subscribers (urls)
   def postman(channel, msg)
