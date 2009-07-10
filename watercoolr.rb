@@ -22,14 +22,18 @@ configure do
       varchar :name, :size => 128
       # channel types: 'github', 'pingfm', 'superfeedr' etc.
       varchar :type, :size => 32, :default => 'seq'
+      # protected channels
+      varchar :secret, :size => 32
       time    :created
       time    :updated
       index   [:updated]
       index   [:name], :unique => true
     end
     # system channels
-    DB[:channels] << { :name => '__pingfm__', :created => Time.now, :type => 'pingfm' }
-    DB[:channels] << { :name => '__github__', :created => Time.now, :type => 'github' }
+    DB[:channels] << { :name => '__pingfm__', :created => Time.now, 
+                       :type => 'pingfm', :secret => 'change_me' }
+    DB[:channels] << { :name => '__github__', :created => Time.now, 
+                       :type => 'github', :secret => 'change_me' }
   end
 
   unless DB.table_exists? "subscribers"
@@ -60,8 +64,6 @@ configure do
     DB[:users] << { :name => 'all', :password => 'change_me', :service => 'hooks' }
     # secret per hook
     # DB[:users] << { :name => 'ff', :password => 'change_me_too', :service => 'hooks' }
-    # channel protection - for PubSubHubbub subscribers
-    DB[:users] << { :name => 'all', :password => 'change_me', :service => 'channels' }
   end 
 end
 
@@ -163,11 +165,14 @@ post '/channels' do
     # superfeedr api key
     id = data['id'] if data['id'] && (data['type'] == 'superfeedr')
     type = data['type'] || 'seq'
-  rescue
+    secret = data['secret']
+  rescue Exception => e
+    puts e.to_s
     type = 'seq'
-  end 
+  end
   unless DB[:channels].filter(:name => id).first
-    DB[:channels] << { :name => id, :created => Time.now, :type => type }
+    DB[:channels] << { :name => id, :created => Time.now, 
+                       :type => type, :secret => secret }
   end  
   { :id => id.to_s }.to_json
 end
@@ -180,7 +185,11 @@ post '/subscribe' do
     type = data['type'] || 'debug'
     ['url', 'channel', 'type'].each { |d| data.delete(d) }
     rec = DB[:channels].filter(:name => channel_name).first
-    raise "channel #{channel_name} does not exists" unless rec[:id]  
+    raise "channel #{channel_name} does not exists" unless rec[:id]
+    if rec[:secret]
+      raise "not authorized" unless rec[:secret] == data['secret']
+      data.delete('secret')
+    end  
     unless DB[:subscribers].filter(:channel_id => rec[:id], :url => url).first
       raise "DB insert failed" unless DB[:subscribers] << { 
                                             :channel_id => rec[:id], 

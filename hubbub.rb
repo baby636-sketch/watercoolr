@@ -1,5 +1,6 @@
 helpers do
   # verify subscribers callback
+  # TODO: use it in /hub/subscribe
   def do_verify(url, data)
     return false unless url and data
     begin
@@ -40,7 +41,8 @@ post '/hub/publish' do
     if topic.first
       topic.update(:updated => Time.now)
     else  
-      DB[:channels] << { :name => id, :created => Time.now, :type => 'pubsubhubbub' }
+      DB[:channels] << { :name => id, :created => Time.now, 
+                         :type => 'pubsubhubbub', :secret => 'change_me' }
     end  
   rescue Exception => e
     puts e.to_s
@@ -55,46 +57,32 @@ end
 # return hub.challenge
 get '/hub/callback' do
   id = [params['hub.topic']].pack("m*").strip
-  topic = DB[:channels].filter(:name => id)
-  respond "404 Not Found", 404  unless topic.first
+  topic = DB[:channels].filter(:name => id).first
+  unless topic
+    status 404
+    return "404 Not Found"
+  end  
   if request.post?
     postman(id, atom_parse(request.body.string)).to_json
     {:status => 'OK'}.to_json
   else
-    rec_all = DB[:users].filter(:name => 'all', :service => 'channels').first
-    respond "404 Not Found", 404 unless rec_all
-    # secret per channel
-    rec = DB[:users].filter(:name => "#{id}", :service => 'channels').first
-    rec = rec_all unless rec
-    respond "404 Not Found", 404 unless request['hub.verify_token'] == rec[:password]
+    unless request['hub.verify_token'] == topic[:secret]
+      status 404
+      return "404 Not Found"
+    end
     request['hub.challenge']
   end  
 end 
 
-get '/hub/verify' do
-  topic, secret = params[:topic], params[:secret]
-  unless topic and secret
-    status 400
-    return "400 Bad request: need url and secret parameters"
-  end
-  data = { :mode => 'subscribe', :verify => 'sync', :vtoken => secret, :url => topic }
-  unless do_verify("http://localhost:4567/hub/callback", data)
-    status 409
-    return "409 Subscription verification failed"
-  end
-  status 204
-  "204 No Content"
-end  
 
 # Check ownership - response body is the superfeedr secret token
 get '/superfeedr' do
-  begin
-    rec = DB[:channels].filter(:type => 'superfeedr').order(:created).last
-    raise "'superfeedr' type topic does not exists" unless rec[:id]
-    rec[:name]
-  rescue Exception => e  
-    {:status => e.to_s}.to_json
-  end  
+  rec = DB[:channels].filter(:type => 'superfeedr').order(:created).last
+  unless rec
+    status 404
+    return "404 Not Found"
+  end   
+  rec[:name]
 end  
 
 post '/superfeedr' do
