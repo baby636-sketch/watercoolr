@@ -62,17 +62,23 @@ get '/hub/callback' do
     status 404
     return "404 Not Found"
   end  
-  if request.post?
-    postman(id, atom_parse(request.body.string)).to_json
-    {:status => 'OK'}.to_json
-  else
-    unless request['hub.verify_token'] == topic[:secret]
-      status 404
-      return "404 Not Found"
-    end
-    request['hub.challenge']
+  unless request['hub.verify_token'] == topic[:secret]
+    status 404
+    return "404 Not Found"
+  end
+  request['hub.challenge']
+end
+
+
+post '/hub/callback' do
+  id = [params['hub.topic']].pack("m*").strip
+  unless DB[:channels].filter(:name => id).first
+    status 404
+    return "404 Not Found"
   end  
-end 
+  postman(id, atom_parse(request.body.string)).to_json
+  {:status => 'OK'}.to_json
+end  
 
 
 # Check ownership - response body is the superfeedr secret token
