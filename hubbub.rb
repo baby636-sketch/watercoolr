@@ -58,7 +58,7 @@ end
 # PubSubHubBub subscribers check - check the topic and secret and
 # return hub.challenge
 get '/hub/callback/:id' do
-  channel = DB[:channels].filter(:name => id).first
+  channel = DB[:channels].filter(:name => params[:id]).first
   throw :halt, [404, "Not found"]  unless channel
   url = [params['hub.topic']].pack("m*").strip
   unless request['hub.verify_token'] == channel[:secret] and url == channel[:topic]
@@ -68,7 +68,7 @@ get '/hub/callback/:id' do
 end  
 
 post '/hub/callback/:id' do
-  channel = DB[:channels].filter(:name => id).first
+  channel = DB[:channels].filter(:name => params[:id]).first
   throw :halt, [404, "Not found"] unless channel
   postman(channel[:id], atom_parse(request.body.string)).to_json
   {:status => 'OK'}.to_json
