@@ -36,18 +36,20 @@ post '/hub/publish' do
     return "400 Bad request: Empty 'hub.url' parameter"
   end
   begin 
-    id = [params['hub.url']].pack("m*").strip
-    topic = DB[:channels].filter(:name => id)
-    if topic.first
-      topic.update(:updated => Time.now)
+    url = [params['hub.url']].pack("m*").strip
+    channel = DB[:channels].filter(:topic => url)
+    if channel.first
+      channel.update(:updated => Time.now)
+      id = channel.first[:id]
     else  
-      DB[:channels] << { :name => id, :created => Time.now, 
+      id = gen_id
+      DB[:channels] << { :name => id, :topic => url, :created => Time.now, 
                          :type => 'pubsubhubbub', :secret => 'change_me' }
-    end  
+    end 
+    { :id => id.to_s }.to_json 
   rescue Exception => e
     puts e.to_s
-    status 404
-    return "404 Not Found"
+    throw :halt, [404, "Not found"]
   end  
   status 204
   return "204 No Content"
@@ -55,39 +57,28 @@ end
 
 # PubSubHubBub subscribers check - check the topic and secret and
 # return hub.challenge
-get '/hub/callback' do
-  id = [params['hub.topic']].pack("m*").strip
-  topic = DB[:channels].filter(:name => id).first
-  unless topic
-    status 404
-    return "404 Not Found"
-  end  
-  unless request['hub.verify_token'] == topic[:secret]
-    status 404
-    return "404 Not Found"
+get '/hub/callback/:id' do
+  channel = DB[:channels].filter(:name => id).first
+  throw :halt, [404, "Not found"]  unless channel
+  url = [params['hub.topic']].pack("m*").strip
+  unless request['hub.verify_token'] == channel[:secret] and url == channel[:topic]
+    throw :halt, [404, "Not found"]
   end
   request['hub.challenge']
-end
-
-
-post '/hub/callback' do
-  id = [params['hub.topic']].pack("m*").strip
-  unless DB[:channels].filter(:name => id).first
-    status 404
-    return "404 Not Found"
-  end  
-  postman(id, atom_parse(request.body.string)).to_json
-  {:status => 'OK'}.to_json
 end  
+
+post '/hub/callback/:id' do
+  channel = DB[:channels].filter(:name => id).first
+  throw :halt, [404, "Not found"] unless channel
+  postman(channel[:id], atom_parse(request.body.string)).to_json
+  {:status => 'OK'}.to_json
+end 
 
 
 # Check ownership - response body is the superfeedr secret token
 get '/superfeedr' do
   rec = DB[:channels].filter(:type => 'superfeedr').order(:created).last
-  unless rec
-    status 404
-    return "404 Not Found"
-  end   
+  throw :halt, [404, "Not found"] unless rec
   rec[:name]
 end  
 
