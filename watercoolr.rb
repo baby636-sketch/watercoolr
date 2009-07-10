@@ -19,14 +19,17 @@ configure do
   unless DB.table_exists? "channels"
     DB.create_table :channels do
       primary_key :id
-      varchar :name, :size => 128
+      varchar :name, :size => 32
       # channel types: 'github', 'pingfm', 'superfeedr' etc.
       varchar :type, :size => 32, :default => 'seq'
+      # pubsubhubbub support
+      varchar :topic, :size => 128
       # protected channels
       varchar :secret, :size => 32
       time    :created
       time    :updated
       index   [:updated]
+      index   [:topic]
       index   [:name], :unique => true
     end
     # system channels
