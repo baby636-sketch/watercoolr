@@ -3,6 +3,7 @@ require 'sinatra'
 require 'sequel'
 require 'zlib'
 require 'json'
+require 'crack'
 require 'httpclient'
 
 begin
@@ -18,7 +19,7 @@ configure do
   unless DB.table_exists? "channels"
     DB.create_table :channels do
       primary_key :id
-      varchar :name, :size => 32
+      varchar :name, :size => 128
       # channel types: 'github', 'pingfm', 'superfeedr' etc.
       varchar :type, :size => 32, :default => 'seq'
       time    :created
@@ -63,7 +64,6 @@ configure do
 end
 
 helpers do
-
   def protected!
     response['WWW-Authenticate'] = %(Basic realm="HTTP Auth") and \
     throw(:halt, [401, "Not authorized\n"]) and return unless authorized?
@@ -90,6 +90,31 @@ helpers do
   def unmarshal(str)
     Marshal.load(str.unpack("m")[0])
   end
+
+  def atom_time(date)
+    date.getgm.strftime("%Y-%m-%dT%H:%M:%SZ")
+  end
+
+  def atom_parse(text)
+    atom = Crack::XML.parse(text)
+    r = []
+    if atom["feed"]["entry"].kind_of?(Array)
+      atom["feed"]["entry"].each { |e| 
+        r << {:id => e["id"], :title => e["title"], :published => e["published"] }
+      }
+    else
+      e = atom["feed"]["entry"]
+      r = {:id => e["id"], :title => e["title"], :published => e["published"] }
+    end
+    r
+  end
+
+  def hash2text(payload)
+    text = ""
+    text = payload if payload.kind_of?(String)
+    payload.each { |k,v| text << "#{k} = #{v}\n" } if payload.kind_of?(Hash)
+    text  
+  end  
 
   # post a message to a list of subscribers (urls)
   def postman(channel, msg)
@@ -128,7 +153,7 @@ end
 # comment following lines if not needed
 load 'pubs.rb'
 load 'subs.rb'
-load 'superfeedr.rb'
+load 'hubbub.rb'
 load 'hooks.rb'
 
 get '/' do
@@ -140,6 +165,7 @@ post '/channels' do
   id = gen_id
   begin
     data = JSON.parse(params[:data])
+    # superfeedr api key
     id = data['id'] if data['id'] && (data['type'] == 'superfeedr')
     type = data['type'] || 'seq'
   rescue
