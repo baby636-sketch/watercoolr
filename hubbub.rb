@@ -65,7 +65,7 @@ end
 post '/hub/callback/:id' do
   channel = DB[:channels].filter(:name => params[:id]).first
   throw :halt, [404, "Not found"] unless channel
-  postman(channel[:id], request.body.string).to_json
+  postman(channel[:id], atom_parse(request.body.string)).to_json
   {:status => 'OK'}.to_json
 end 
 
