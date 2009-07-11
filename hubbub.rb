@@ -28,13 +28,9 @@ end
 # Publishers pinging this URL, when there is new content
 post '/hub/publish' do
   unless params['hub.mode'] and params['hub.url'] and params['hub.mode'] == 'publish'
-    status 400
-    return "400 Bad request: Expected 'hub.mode=publish' and 'hub.url'"
+    throw :halt, [400, "Bad request: Expected 'hub.mode=publish' and 'hub.url'"]
   end 
-  if params['hub.url'] == ""
-    status 400
-    return "400 Bad request: Empty 'hub.url' parameter"
-  end
+  throw :halt, [400, "Bad request: Empty 'hub.url' parameter"] if params['hub.url'] == ""
   begin 
     url = [params['hub.url']].pack("m*").strip
     channel = DB[:channels].filter(:topic => url)
@@ -48,8 +44,7 @@ post '/hub/publish' do
     end 
     { :id => id.to_s }.to_json 
   rescue Exception => e
-    puts e.to_s
-    throw :halt, [404, "Not found"]
+    throw :halt, [404, e.to_s]
   end  
   status 204
   return "204 No Content"
@@ -70,7 +65,7 @@ end
 post '/hub/callback/:id' do
   channel = DB[:channels].filter(:name => params[:id]).first
   throw :halt, [404, "Not found"] unless channel
-  postman(channel[:id], atom_parse(request.body.string)).to_json
+  postman(channel[:id], request.body.inspect).to_json
   {:status => 'OK'}.to_json
 end 
 
@@ -85,11 +80,10 @@ end
 post '/superfeedr' do
   begin
     rec = DB[:channels].filter(:type => 'superfeedr').order(:created).last
-    raise "'superfeedr' type topic does not exists" unless rec[:id]
+    throw :halt, [404, "'superfeedr' type topic does not exists"] unless rec[:id]
     postman(rec[:id], atom_parse(request.body.string)).to_json
     {:status => 'OK'}.to_json
   rescue Exception => e
-    status 500
-    {:status => e.to_s}.to_json
+    throw :halt, [500, {:status => e.to_s}.to_json]
   end  
 end
