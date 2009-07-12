@@ -65,7 +65,7 @@ post '/hub/subscribe' do
     throw :halt, [400, "Bad request: Expected 'hub.mode', 'hub.callback', 'hub.topic', and 'hub.verify'"]
   end
   throw :halt, [400, "Bad request: Empty 'hub.callback' or 'hub.topic'"]  if callback.empty? or topic.empty?
-  throw :halt, [400, "Bad request: Unrecognized mode" unless ['subscribe', 'unsubscribe'].include?(mode)
+  throw :halt, [400, "Bad request: Unrecognized mode"] unless ['subscribe', 'unsubscribe'].include?(mode)
   
   # For now, only using the first preference of verify mode 
   verify = verify.split(',').first 
