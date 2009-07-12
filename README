@@ -88,28 +88,45 @@ channel.
   id = JSON.parse(resp)["id"]
 
 
-superfeedr
+PubSubHubBub
 -----------
 
-http://superfeedr.com/ can send to your subscribers changes in some Atom or RSS
-feeds. Their implementation of the PubSubHubbub protocol verifying ownership
-of the URL by sending GET request and expecting back a response with body,
-containing special token. To use watercoolr with superfeedr, you need to register
-a channel with ID={secret superfeedr token}:
+watercoolr can be PubSubHubbub callback only for now. 
+I'm working on a hub implementation. To get Atom notifications from some hub:
+
+  1a. Go to http://watercoolr.example.com/hub/publish and fill the text box 
+with your topic (link to RSS/Atom feed). This will create 'pubsubhubbub' 
+type channel. Or
+  
+  1b. If you will use Superfeedr for hub, register a channel with 
+ID={secret superfeedr token}:
 
   TOKEN = 'YourSuperFeedrToken'.freeze
   resp = RestClient.post 'http://admin:admin@localhost:4567/channels', 
     :data => { :type => 'superfeedr', :id => TOKEN }.to_json
   id = JSON.parse(resp)["id"]
 
-Then in "Settings"|"Notifications" choose Type: "PubSubhubbub" and in the 
+  2. Change the secret for the channel (manually for now)
+
+  3. Add subscribers like usual (provide channel secret if needed)
+
+  4a. GAE PubSubHubBub
+
+Go to http://pubsubhubbub.appspot.com/subscribe and
+  - Callback: http://watercoolr.example.com/hub/callback/{channel_name}
+  - Topic: same link to RSS/Atom link, used in channel creation
+  - Verify type, Mode - your choice
+  - Verify token: the channel secret (default = 'change_me')
+
+  4b. Superfeedr 
+
+In "Settings"|"Notifications" choose Type: "PubSubhubbub" and in the 
 "Webhook URL" box enter:
 
-  http://watercoolr.example.com/superfeedr
+  http://watercoolr.example.com/hub/callback/{YourSuperFeedrToken}
 
-TODO: I'm still not sure for the format of the comming notifications. That's why
-      the subscribers will receive JSON-encoded inspect() of the notification.
-
+TODO: make watercoolr ack like a PubSubHubbub hub - /hub/publish and 
+/hub/subscribe (sync/async mode, subscribe/unsubscribe) implementation.
 
 
 Output
