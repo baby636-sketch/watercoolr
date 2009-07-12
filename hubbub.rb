@@ -51,10 +51,11 @@ post '/hub/publish' do
 end
 
 # PubSubHubBub subscribers check - check the topic and secret and
-# return hub.challenge
+# return hub.challenge or channel name for superfeedr
 get '/hub/callback/:id' do
   channel = DB[:channels].filter(:name => params[:id]).first
   throw :halt, [404, "Not found"]  unless channel
+  return channel[:name] if channel[:type] == 'superfeedr'
   url = [params['hub.topic']].pack("m*").strip
   unless request['hub.verify_token'] == channel[:secret] and url == channel[:topic]
     throw :halt, [404, "Not found"]
@@ -68,22 +69,3 @@ post '/hub/callback/:id' do
   postman(channel[:id], atom_parse(request.body.string)).to_json
   {:status => 'OK'}.to_json
 end 
-
-
-# Check ownership - response body is the superfeedr secret token
-get '/superfeedr' do
-  rec = DB[:channels].filter(:type => 'superfeedr').order(:created).last
-  throw :halt, [404, "Not found"] unless rec
-  rec[:name]
-end  
-
-post '/superfeedr' do
-  begin
-    rec = DB[:channels].filter(:type => 'superfeedr').order(:created).last
-    throw :halt, [404, "'superfeedr' type topic does not exists"] unless rec[:id]
-    postman(rec[:id], atom_parse(request.body.string)).to_json
-    {:status => 'OK'}.to_json
-  rescue Exception => e
-    throw :halt, [500, {:status => e.to_s}.to_json]
-  end  
-end
