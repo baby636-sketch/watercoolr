@@ -8,7 +8,7 @@ helpers do
       query = { 'hub.mode' => data[:mode], 
                 'hub.topic' => data[:url],
                 'hub.challenge' => challenge,
-                'hub.verify_token' => data[:vtoken]}
+                'hub.verify_token' => data[:secret]}
       MyTimer.timeout(5) do
          res = HTTPClient.get_content(url, query)
          return false unless res and res == challenge
@@ -34,20 +34,22 @@ post '/hub/publish' do
   begin 
     url = [params['hub.url']].pack("m*").strip
     channel = DB[:channels].filter(:topic => url)
+    msg = "No Content"
     if channel.first
-      channel.update(:updated => Time.now)
       id = channel.first[:id]
+      channel.update(:updated => Time.now)
+      # TODO: find the differences from the previous feed fetch
+      msg = postman(id, 'hub.publish: ' + atom_time(Time.now)).to_json
     else  
       id = gen_id
       DB[:channels] << { :name => id, :topic => url, :created => Time.now, 
                          :type => 'pubsubhubbub', :secret => 'change_me' }
-    end 
-    { :id => id.to_s }.to_json 
+      msg = { :id => id.to_s }.to_json 
+    end
+    throw :halt, [204, "204 #{msg}"]
   rescue Exception => e
     throw :halt, [404, e.to_s]
-  end  
-  status 204
-  return "204 No Content"
+  end
 end
 
 # Subscribe to PubSubHubbub
@@ -60,7 +62,7 @@ post '/hub/subscribe' do
   callback = params['hub.callback']
   topic    = params['hub.topic']
   verify   = params['hub.verify']
-  vtoken   = params['hub.verify_token']
+  secret   = params['hub.verify_token']
   unless mode and callback and topic and verify
     throw :halt, [400, "Bad request: Expected 'hub.mode', 'hub.callback', 'hub.topic', and 'hub.verify'"]
   end
@@ -73,16 +75,30 @@ post '/hub/subscribe' do
   begin
     channel = DB[:channels].filter(:topic => [topic].pack("m*").strip)
     throw :halt, [404, "Not Found"] unless channel.first
+    
     state = (verify == 'async') ? 1 : 0
-    data = { :mode => mode, :verify => verify, :vtoken => vtoken, :url => topic }
+    data = { :mode => mode, :verify => verify, :secret => secret, :url => topic }
     if verify == 'sync'
-      raise "Verification failed"  unless do_verify(callback, data)
+      raise "sync do_verify() failed" unless do_verify(callback, data)
       state = 0
     end
-    # TODO: subscribe/unsubscribe (DB manipulations)
-    throw :halt, [202, "202 Scheduled for verification"] if verify == 'async'
-  rescue
-    throw :halt, [409, "Subscription verification failed"]
+
+    # subscribe/unsubscribe to/from ALL channels with that topic
+    channel.all.each do |ch|
+      if mode == 'subscribe'
+        unless DB[:subscribers].filter(:channel_id => ch[:id], :url => callback).first
+          raise "DB insert failed" unless DB[:subscribers] << {
+            :channel_id => ch[:id], :url => callback, :type => 'pubsubhubbub',
+            :state => state, :data => marshal(data) }
+        end
+        throw :halt, [202, "202 Scheduled for verification"] if verify == 'async'
+      else # mode = 'unsubscribe'
+        DB[:subscribers].filter(:channel_id => ch[:id], :url => callback).delete
+      end
+    end  
+
+  rescue Exception => e
+    throw :halt, [409, "Subscription verification failed: #{e.to_s}"]
   end
   status 204
   "204 No Content"

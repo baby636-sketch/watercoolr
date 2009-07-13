@@ -44,9 +44,8 @@ configure do
       primary_key :id
       foreign_key :channel_id
       varchar     :url, :size => 128
-      # TODO: subs types - 'github', 'messagepub' etc.
-      # defining how the messages will be formatted
       varchar     :type, :size => 32, :default => 'github'
+      integer     :state, :default => 0  # 0 - verified, 1 - need verification
       text        :data 
       index       [:channel_id, :url], :unique => true
     end
