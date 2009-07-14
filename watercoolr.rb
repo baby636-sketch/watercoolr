@@ -166,6 +166,11 @@ post '/channels' do
     data = JSON.parse(params[:data])
     # superfeedr api key
     id = data['id'] if data['id'] && (data['type'] == 'superfeedr')
+    if data['topic'] && (data['type'] == 'pubsubhubbub')
+      topic = [data['topic']].pack("m*").strip
+    else
+      topic = nil
+    end  
     type = data['type'] || 'seq'
     secret = data['secret']
   rescue Exception => e
@@ -173,7 +178,7 @@ post '/channels' do
     type = 'seq'
   end
   unless DB[:channels].filter(:name => id).first
-    DB[:channels] << { :name => id, :created => Time.now, 
+    DB[:channels] << { :name => id, :topic => topic, :created => Time.now, 
                        :type => type, :secret => secret }
   end  
   { :id => id.to_s }.to_json

@@ -88,15 +88,21 @@ channel.
   id = JSON.parse(resp)["id"]
 
 
-PubSubHubBub
+PubSubHubbub
 -----------
 
-watercoolr can be PubSubHubbub callback only for now. 
-I'm working on a hub implementation. To get Atom notifications from some hub:
+watercoolr can be PubSubHubbub CALLBACK ONLY for now. 
+To get Atom notifications from some hub:
 
-  1a. Go to http://watercoolr.example.com/hub/publish and fill the text box 
-with your topic (link to RSS/Atom feed). This will create 'pubsubhubbub' 
-type channel. Or
+  1a. Create 'pubsubhubbub' type channel with some topic and a secret:
+
+  resp = RestClient.post 'http://admin:admin@localhost:4567/channels',
+    :data => { :type => 'pubsubhubbub', 
+               :topic => 'http://example.com/feed',
+               :secret => 'secret' }.to_json
+  id = JSON.parse(resp)["id"]
+
+  Or: 
   
   1b. If you will use Superfeedr for hub, register a channel with 
 ID={secret superfeedr token}:
@@ -106,11 +112,9 @@ ID={secret superfeedr token}:
     :data => { :type => 'superfeedr', :id => TOKEN }.to_json
   id = JSON.parse(resp)["id"]
 
-  2. Change the secret for the channel (manually for now)
+  2. Add subscribers like usual (provide channel secret if needed)
 
-  3. Add subscribers like usual (provide channel secret if needed)
-
-  4a. GAE PubSubHubBub
+  3a. GAE PubSubHubBub
 
 Go to http://pubsubhubbub.appspot.com/subscribe and
   - Callback: http://watercoolr.example.com/hub/callback/{channel_name}
@@ -118,15 +122,12 @@ Go to http://pubsubhubbub.appspot.com/subscribe and
   - Verify type, Mode - your choice
   - Verify token: the channel secret (default = 'change_me')
 
-  4b. Superfeedr 
+  3b. Superfeedr 
 
 In "Settings"|"Notifications" choose Type: "PubSubhubbub" and in the 
 "Webhook URL" box enter:
 
   http://watercoolr.example.com/hub/callback/{YourSuperFeedrToken}
-
-TODO: make watercoolr ack like a PubSubHubbub hub - /hub/publish and 
-/hub/subscribe (sync/async mode, subscribe/unsubscribe) implementation.
 
 
 Output
